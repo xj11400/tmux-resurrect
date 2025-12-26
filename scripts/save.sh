@@ -15,6 +15,8 @@ SCRIPT_OUTPUT="$1"
 
 grouped_sessions_format() {
 	local format
+	format+="#{session_id}"
+	format+="${delimiter}"
 	format+="#{session_grouped}"
 	format+="${delimiter}"
 	format+="#{session_group}"
@@ -82,11 +84,23 @@ state_format() {
 }
 
 dump_panes_raw() {
-	tmux list-panes -a -F "$(pane_format)"
+	tmux list-sessions -F "#{session_id}	#{session_name}" |
+	sed 's/^\$//' |
+	sort -n |
+	cut -f2- |
+	while read session_name; do
+		tmux list-panes -s -t "$session_name" -F "$(pane_format)"
+	done
 }
 
 dump_windows_raw(){
-	tmux list-windows -a -F "$(window_format)"
+	tmux list-sessions -F "#{session_id}	#{session_name}" |
+	sed 's/^\$//' |
+	sort -n |
+	cut -f2- |
+	while read session_name; do
+		tmux list-windows -t "$session_name" -F "$(window_format)"
+	done
 }
 
 toggle_window_zoom() {
@@ -160,9 +174,11 @@ dump_grouped_sessions() {
 	local current_session_group=""
 	local original_session
 	tmux list-sessions -F "$(grouped_sessions_format)" |
+		sed 's/^\$//' |
+		sort -n |
+		cut -f2- |
 		grep "^1" |
 		cut -c 3- |
-		sort |
 		while IFS=$d read session_group session_id session_name; do
 			if [ "$session_group" != "$current_session_group" ]; then
 				# this session is the original/first session in the group
